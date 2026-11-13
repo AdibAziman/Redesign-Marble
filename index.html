@@ -2296,9 +2296,11 @@ function renderRaceControls(){
   const pl=ui.paused?t('Resume','Sambung'):t('Pause','Jeda');
   $('#speedBtns').innerHTML=`<button class="btn btn-sm" data-act="pause" aria-pressed="${!!ui.paused}" aria-label="${pl}" title="${pl}">${ic(ui.paused?'play':'pause')}</button>`+
     [1,2,4].map(v=>`<button class="btn btn-sm" data-act="speed" data-v="${v}" aria-pressed="${simSpeed===v}">${ic(v===1?'play':'ff')}${v}×</button>`).join('')+
-    `<button class="btn btn-sm" data-act="skip">${ic('skip')}${t('Skip','Langkau')}</button>`+orders;
+    `<button class="btn btn-sm" data-act="skip">${ic('skip')}${t('Skip','Langkau')}</button>`+orders+
+    (voice?`<button class="btn btn-sm" data-act="raceVoice" aria-pressed="${raceVoice}">${ic('mic')}${raceVoice?t('Voice on','Suara hidup'):t('Voice off','Suara mati')}</button>`:'');
 }
 function startRace(){
+  voice?.cancel(); voiceAfter=0;
   if(state.entries.length<2) return toast(t('Enter two marbles first','Masukkan dua guli dulu'));
   { const hi=state.entries.map(byId).filter(m=>m&&crackRisk(m)===2); if(hi.length&&!ui.riskOK){ // v105: shattering only after a clear warning
       modal(`<div class="eyebrow">${ic('alert')}${t('Crack risk','Risiko retak')}</div><h2>${t('This marble can shatter','Guli ini boleh hancur')}</h2><p>${hi.map(m=>`<strong>${esc(m.name)}</strong> (${m.cond}%)`).join(', ')} ${t(hi.length>1?'are worn low. If they crack twice in this race they shatter and are gone for good.':'is worn low. If it cracks twice in this race it shatters and is gone for good.',hi.length>1?'sudah sangat haus. Jika retak dua kali dalam perlumbaan ini, ia hancur dan hilang selamanya.':'sudah sangat haus. Jika retak dua kali dalam perlumbaan ini, ia hancur dan hilang selamanya.')}</p><p class="note">${t('Repair it in the Garage to bring the risk down.','Baiki di Garaj untuk mengurangkan risiko.')}</p>
@@ -2379,7 +2381,7 @@ function runLights(done){
 function showBanner(){ const b=$('#banner'); b.innerHTML=`<div class="banner">${t('Finish','Tamat')}</div>`; setTimeout(()=>{ if(b.firstChild) b.firstChild.classList.add('gone'); },1500); }
 function updateProgress(){ $('#progFill').style.width=`${rProg(rOrder()[0])*100}%`; }
 function setSpeed(v){simSpeed=v;renderRaceControls();}
-function togglePause(){ui.paused=!ui.paused;renderRaceControls();setTicker(ui.paused?t('Paused','Dijeda'):t('Back to the race','Kembali ke perlumbaan'));}
+function togglePause(){ui.paused=!ui.paused;if(ui.paused) voice?.cancel();renderRaceControls();setTicker(ui.paused?t('Paused','Dijeda'):t('Back to the race','Kembali ke perlumbaan'));}
 function skipRace(){
   endWalk(false); ui.pfDone=true; ui.photo=null; $('#photo').innerHTML='';
   clearLights(); $('#lights').classList.add('out'); ui.racing=true; ui.paused=false;
@@ -2422,6 +2424,24 @@ function photoFrame(dt){ // hold the snapshot, camera side-on at the finish line
   S3.look.lerp(S3.tmp.set(p[0]+u[0]*.15,p[1]+u[1]*.15,p[2]+u[2]*.15),1-Math.exp(-dt*8));
   R3.cam.position.lerp(S3.goal,1-Math.exp(-dt*6)); R3.cam.lookAt(S3.look);
   if(performance.now()>ui.photo.until){ ui.photo=null; $('#photo').innerHTML=''; }
+}
+const voice=window.speechSynthesis;
+let raceVoice=false, voiceAfter=0;
+try{ raceVoice=localStorage.getItem('marble-race-voice')==='1'; }catch(e){}
+function speakMarble(text,priority=false){
+  if(!voice||!window.SpeechSynthesisUtterance||!text) return;
+  const now=performance.now();
+  if(!priority&&(now<voiceAfter||voice.speaking||voice.pending)) return;
+  if(priority) voice.cancel();
+  const line=new SpeechSynthesisUtterance(text);
+  line.lang=LANG==='bm'?'ms-MY':'en-GB';
+  const voices=voice.getVoices(), language=line.lang.split('-')[0];
+  const match=voices.find(v=>v.lang.toLowerCase()===line.lang.toLowerCase())
+    ||voices.find(v=>v.lang.toLowerCase().split(/[-_]/)[0]===language);
+  if(match) line.voice=match;
+  line.rate=1.04;
+  voiceAfter=now+3800;
+  voice.speak(line);
 }
 function setTicker(s){const el=$('#ticker'); if(el.textContent===s) return; el.textContent=s; el.classList.remove('new'); void el.offsetWidth; el.classList.add('new');}
 function setHud(lead){
@@ -2475,7 +2495,7 @@ function fillerMsg(ord,lead){ // v113: something to say in quiet stretches (ever
 function commentary(){
   const ord=rOrder(), lead=ord[0], racers=rRacers(), ev=rEvents(), st=rStage(lead);
   setHud(lead);
-  let msg=null;
+  let msg=null, winnerLine=null;
   while(ui.evIdx<ev.length){const e=ev[ui.evIdx++];const r=racers.find(x=>x.key===e.key); if(!r) continue; const pos=ord.indexOf(r);
     if(ui.mode3&&(e.type==='crack'||e.type==='shatter')) fx3(e);
     if(e.type==='crack'&&ui.mom&&ui.mom.cracks.length<12) ui.mom.cracks.push({key:r.key,name:r.name,code:r.code,you:!!r.you,flaw:!!e.flaw,zone:rZone(r),stage:rStage(r),pos:pos+1});
@@ -2501,7 +2521,7 @@ function commentary(){
     if(e.type==='off'&&(r.you||pos<4)) msg=t(`${r.name} flies off and is put back on.`,`${r.name} tercampak keluar dan diletak semula.`);
     if(e.type==='steam'){ const o=racers.find(x=>x.key===e.other); if(o&&(o.you||r.you||pos<5)&&W.t-(S3.lastSteamMsg||-9)>5){ S3.lastSteamMsg=W.t; msg=t(`${r.name} flattens ${o.name} and doesn't lose a thing.`,`${r.name} menggelek ${o.name} tanpa hilang kelajuan.`);} }
     if(e.type==='inc'&&(r.you||pos<4)){const z=(ZONES[e.zone]||ZONES.wood).name.toLowerCase(); msg=t(`${r.name} wobbles on the ${z}.`,`${r.name} goyah di ${z}.`);}
-    if(e.type==='fin'&&e.place===1) msg=t(`${r.name} (${r.code}) wins.`,`${r.name} (${r.code}) menang.`);
+    if(e.type==='fin'&&e.place===1) winnerLine=msg=t(`${r.name} (${r.code}) wins.`,`${r.name} (${r.code}) menang.`);
     if(e.type==='fin'&&r.you&&e.place>1) msg=t(`${r.name} finishes P${e.place}.`,`${r.name} tamat di P${e.place}.`); }
   if(ui.racing&&ui.mom){ // v58: remember last-lap moments for the press room
     if(ui.lastLeader&&ui.lastLeader!==lead.key&&!lead.done&&rStage(lead)===nStage()) ui.mom.lastLead.push({key:lead.key,name:lead.name,you:!!lead.you});
@@ -2520,6 +2540,10 @@ function commentary(){
         if(ui.mom) (ui.mom.charges||(ui.mom.charges=[])).push({key:r.key,name:r.name,code:r.code,gain,pos:i+1});
         heroStart(r.key,gain); } }); }
   ord.forEach((r,i)=>ui.lastPos[r.key]=i+1); ui.lastLeader=lead.key;
+  if(raceVoice&&!ui.paused&&ui.racing){
+    if(winnerLine) speakMarble(winnerLine,true);
+    else if(msg&&$('#ticker').textContent!==msg) speakMarble(msg);
+  }
   if(!msg&&ui.racing&&performance.now()-(ui.msgT||0)>8000&&!(ui.mode3&&W&&W.placed>=3)) msg=fillerMsg(ord,lead);
   if(msg){ setTicker(msg); ui.msgT=performance.now(); }
 }
@@ -4048,7 +4072,7 @@ function seasonGo(){
 /* ---------- rendering ---------- */
 function modal(html){const m=$('#modal');m.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;m.hidden=false;const b=m.querySelector('.actions button, .answers button, input');if(b)b.focus({preventScroll:true});}
 function closeModal(){$('#modal').hidden=true;$('#modal').innerHTML=''; if(typeof state!=='undefined'&&state) setTimeout(()=>{ if(quick||!$('#modal').hidden) return; ui.pullSheet=false; showPullSheet(); if(!state.sponsor&&$('#modal').hidden) sponsorGate(); },0);}
-function showHub(){if(ui.full)setFull(false);cancelAnimationFrame(raf);clearLights();endWalk(false);ui.photo=null;if(ui.mode3){setLoop(null);clear3DRace();ui.mode3=false;$('#tags').innerHTML='';}$('#raceView').hidden=true;if(quick) return;$('#hub').hidden=false;$('#tabs').hidden=false;ui.lastTab=null;render();}
+function showHub(){voice?.cancel();if(ui.full)setFull(false);cancelAnimationFrame(raf);clearLights();endWalk(false);ui.photo=null;if(ui.mode3){setLoop(null);clear3DRace();ui.mode3=false;$('#tags').innerHTML='';}$('#raceView').hidden=true;if(quick) return;$('#hub').hidden=false;$('#tabs').hidden=false;ui.lastTab=null;render();}
 function moodColor(v){return v>=65?'var(--good)':v>=35?'var(--warn)':'var(--bad)';}
 const langSwitch=()=>`<div class="lang" role="group" aria-label="${t('Language','Bahasa')}"><button data-act="lang" data-v="bm" aria-pressed="${LANG==='bm'}">BM</button><button data-act="lang" data-v="en" aria-pressed="${LANG==='en'}">EN</button></div>`;
 /* ---------- team flags ---------- */
@@ -4492,7 +4516,7 @@ function showTutorial(){
   ];
   modal(`<h2>${t('How to play','Cara bermain')}</h2>
     <ol class="tutorial-steps">${steps.map(([title,body])=>`<li><strong>${title}</strong><p class="note">${body}</p></li>`).join('')}</ol>
-    <div class="actions"><button class="btn" data-act="tutorialBack">${t('Back','Kembali')}</button><button class="btn btn-primary" data-act="quickSetup">${t('Try Quick Race','Cuba Lumba Pantas')}</button></div>`);
+    <div class="actions"><button class="btn" data-act="tutorialBack">${t('Back','Kembali')}</button>${voice?`<button class="btn" data-act="tutorialVoice">${ic('mic')}${t('Listen to guide','Dengar panduan')}</button>`:''}<button class="btn btn-primary" data-act="quickSetup">${t('Try Quick Race','Cuba Lumba Pantas')}</button></div>`);
 }
 function showIntro(name){
   $('#app').hidden=false; $('#hub').hidden=true;
@@ -4594,8 +4618,9 @@ document.addEventListener('click',e=>{
       }
       break;
     case 'tutorial': showTutorial(); break;
-    case 'tutorialBack': showIntro(); break;
+    case 'tutorialBack': voice?.cancel(); showIntro(); break;
     case 'quickSetup':
+      voice?.cancel();
       if(quick&&!$('#raceView').hidden) showHub();
       showQuickRace(); break;
     case 'quickAgain':
@@ -4603,6 +4628,18 @@ document.addEventListener('click',e=>{
       break;
     case 'quickExit': leaveQuickRace(false); break;
     case 'quickCareer': leaveQuickRace(true); break;
+    case 'raceVoice':
+      raceVoice=!raceVoice;
+      try{localStorage.setItem('marble-race-voice',raceVoice?'1':'0');}catch(e){}
+      if(raceVoice) speakMarble(t('Live commentary is on.','Ulasan langsung dihidupkan.'),true);
+      else voice?.cancel();
+      renderRaceControls();
+      break;
+    case 'tutorialVoice': {
+      const guide=$('.tutorial-steps');
+      if(guide) speakMarble([...guide.querySelectorAll('li')].map(li=>li.innerText).join('. '),true);
+      break;
+    }
     case 'speed': setSpeed(+v); break;
     case 'skip': skipRace(); break;
     case 'pause': togglePause(); break;
