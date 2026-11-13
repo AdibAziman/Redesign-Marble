@@ -3498,6 +3498,27 @@ function finishRace(){
   setTimeout(showResults,700);
 }
 const trackName=L=>L.trI!=null?TRACK_DEFS[L.trI].name:(L.track||'');
+function nextRaceStakes(){
+  const S=state.season, remaining=S.calendar.length-S.raceIdx-1;
+  if(remaining<=0) return '';
+  const standings=teamTable(), rank=standings.findIndex(team=>team.k==='you');
+  const us=standings[rank], other=rank>0?standings[rank-1]:standings[1];
+  const gap=us&&other?Math.abs(us.pts-other.pts):0;
+  const name=other?esc(other.name):'';
+  const stakes=!us||!other?'':gap===0?t(`Level on points with ${name}`,`Mata seri dengan ${name}`)
+    :rank>0?t(`${gap} pts behind ${name}`,`${gap} mata di belakang ${name}`)
+    :t(`${gap} pts ahead of ${name}`,`${gap} mata di hadapan ${name}`);
+  const track=buildTrack(S.calendar[S.raceIdx+1]), focus=favors(track);
+  const stat=['sp','gr','st'][focus.topIdx];
+  const strongest=state.roster.reduce((best,m)=>!best||m[stat]>best[stat]?m:best,null);
+  return `<section class="dc">
+    <h3 class="dc-t">${t('Next race stakes','Persaingan pusingan seterusnya')}</h3>
+    <p><strong>${stakes?stakes+' · ':''}${t(remaining===1?'1 race left':`${remaining} races left`,`Baki ${remaining} perlumbaan`)}</strong></p>
+    <p>${esc(track.name)} · ${t('Favours','Memihak kepada')} <strong>${focus.top}</strong></p>
+    ${strongest?`<p class="note">${t('Highest','Stat tertinggi untuk')} ${focus.top}: ${esc(strongest.name)} · ${t('Crack risk','Risiko retak')} <span class="risk rk${crackRisk(strongest)}">${RISK_NAME()[crackRisk(strongest)]}</span></p>`:''}
+  </section>`;
+}
+
 function showResults(){
   const L=state.lastRace, best=Math.min(...L.you.map(y=>y.dnf?99:y.pos));
   const head=best===1?t('Victory!','Kemenangan!'):best<=3?t('Podium finish','Naik podium'):best<=10?t('Points on the board','Dapat mata'):t('A tough day','Hari yang sukar');
@@ -3523,6 +3544,7 @@ function showResults(){
     ${lostNote}${betRows?`<div class="slip">${betRows}</div>`:''}
     ${L.spon?`<div class="slip"><div class="slip-row"><span class="grow">${ic('ticket')} ${esc(L.spon.name)} · ${t('race budget','bajet perlumbaan')}</span><strong class="pos">+${fmt(L.spon.base)}</strong></div>${L.spon.res.map(r=>`<div class="slip-row"><span class="grow">${r.ok?ic('check'):'✕'} ${tx(r.txt)}</span><strong class="${r.ok?'pos':'neg'}">${r.ok?'+'+fmt(r.bonus):t('Missed','Terlepas')}</strong></div>`).join('')}</div>`:''}
     <details class="fullres"><summary>${t('Full classification','Keputusan penuh')}</summary><div style="overflow-x:auto"><table class="res-table">${rows}</table></div></details>
+    ${nextRaceStakes()}
     <div class="actions"><button class="btn btn-primary" data-act="continueResults" data-v="raceday">${lastRound?t('See season standings','Lihat kedudukan musim'):t('Next race','Perlumbaan seterusnya')}</button>
       ${lastRound?'':`<button class="btn" data-act="continueResults" data-v="garage">${t('Service & change lineup','Servis & tukar barisan')}</button>`}
       <button class="btn btn-link" data-act="toPress">${ic('mic')}${t('Press conference','Sidang media')}</button></div>`);
