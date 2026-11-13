@@ -1537,6 +1537,47 @@ function monsoonSteer(W,b,idx,p,dt){
   b.body.applyImpulse({x:(side[0]*steering+tangent[0]*intent.pace)*dt*mass,
     y:0,z:(side[2]*steering+tangent[2]*intent.pace)*dt*mass},true);
 }
+function bridgeOrder(order){
+  return order==='push'?t('Push','Serang'):order==='protect'?t('Protect','Lindung'):t('Hold','Kekal');
+}
+function recordBridge(W){
+  const rows=W.bridge||(W.bridge=[]), order=order3(W);
+  order.forEach((b,i)=>{
+    if(!b.you) return;
+    const crossing=W.tr.zoneOf[b.idx]==='ice';
+    let row=rows.find(r=>r.key===b.key);
+    if(!row&&crossing&&!b.done){
+      row={key:b.key,name:b.name,entry:i+1,orders:[],startIncidents:b.incidents,lane:b.monsoonLane};
+      rows.push(row);
+    }
+    if(!row||row.complete) return;
+    row.incidents=b.incidents-row.startIncidents;
+    if(b.done){row.complete=true;return;}
+    if(!crossing){
+      row.complete=true;
+      if(b.idx>W.tr.zoneOf.lastIndexOf('ice')){
+        row.exit=i+1;
+        if(row.exit<row.entry) W.events.push({type:'bridgeGain',key:b.key,gain:row.entry-row.exit,t:W.t});
+      }
+      return;
+    }
+    const active=W.teamOrder||'hold';
+    if(!row.orders.includes(active)) row.orders.push(active);
+    if(b.monsoonLane!==row.lane){
+      row.lane=b.monsoonLane;
+      if(W.t>=(row.nextNotice||0)){
+        W.events.push({type:'bridgeLane',key:b.key,t:W.t});
+        row.nextNotice=W.t+2;
+      }
+    }
+  });
+}
+function bridgeRecap(rows){
+  if(!rows?.length) return '';
+  return `<section class="dc"><h3 class="dc-t">${t('Bridge tactics','Taktik jambatan')}</h3>
+    ${rows.map(r=>`<p><strong>${esc(r.name)}</strong> · ${r.orders.map(bridgeOrder).join(' / ')}<br>
+    <span class="note">P${r.entry} → ${r.exit?'P'+r.exit:t('No exit recorded','Tiada rekod keluar')} · ${r.incidents} ${t('incidents','insiden')}</span></p>`).join('')}</section>`;
+}
 function stepWorld3(W){
   const tr=W.tr,dt=PHYS.DT; W.t+=dt;
   if(W.started&&W.divs&&W.t-W.t0>3.5){ W.divs.forEach(c=>W.world.removeCollider(c,true)); W.divs=null; } // lane dividers go once the field is away (loop tracks pass here again)
@@ -1671,6 +1712,7 @@ function stepWorld3(W){
   (W.mechs||[]).forEach(mc=>{ if(mc.type==='windmill'){ mc.ang=W.t*mc.speed+mc.phase; mc.body.setNextKinematicRotation(qmul(mc.base,qz(mc.ang))); }
     else { const c=((W.t+mc.phase)%mc.period)/mc.period, target=c>.62?1.15:0; mc.open+=(target-mc.open)*.1; const q=v3.add(mc.p0,v3.mul(mc.U,mc.open)); mc.body.setNextKinematicTranslation({x:q[0],y:q[1],z:q[2]}); } });
   W.world.step();
+  if(W.started&&tr.monsoon) recordBridge(W);
   if(W.started&&W.t-W.t0>320){W.balls.filter(b=>!b.done).sort((a,b)=>b.prog-a.prog).forEach(b=>{b.done=true;b.ft=W.t-W.t0;b.place=++W.placed;W.finished++;});}
 }
 const order3=W=>W.balls.slice().sort((a,b)=>{if(a.done&&b.done)return a.place-b.place;if(a.done)return -1;if(b.done)return 1;return b.prog-a.prog;});
@@ -2346,6 +2388,7 @@ function setTicker(s){const el=$('#ticker'); if(el.textContent===s) return; el.t
 function setHud(lead){
   let h=lead.done?`<span><b>${t('Finish','Tamat')}</b></span>`:`<span>${stageLabel()} <b>${ui.racing?rStage(lead):1}</b>/${nStage()}</span>`;
   if(ui.mode3){ const time=W.started?(lead.done?lead.ft:W.t-W.t0):0; h+=`<span>${time.toFixed(1)}s</span><span>${ZONES[rZone(lead)].name}</span>`; }
+  if(ui.mode3&&W?.tr.monsoon) h+=`<span><b>${bridgeOrder(W.teamOrder)}</b> · ${t('Slick bridge','Jambatan licin')}</span>`;
   $('#lapBox').innerHTML=h;
 }
 /* v110 (user): hero moment. Cut to your marble, punch in, half speed for ~1 s, ease back; "+N" tag. Playback only: the physics runs the same steps.
@@ -2406,6 +2449,8 @@ function commentary(){
     if(e.type==='shatter') msg=r.you?t(`${r.name} shatters. It is gone.`,`${r.name} hancur. Ia sudah tiada.`):t(`${r.name} (${r.code}) shatters and is out.`,`${r.name} (${r.code}) hancur dan tersingkir.`);
     if(e.type==='out'&&W&&ui.mode3&&W.tr.zoneOf[r.idx]==='gap') msg=t(`${r.name} comes up short at the jump and drops out.`,`${r.name} tak cukup laju di lompatan dan terjatuh.`);
     else if(e.type==='out') msg=r.you?t(`${r.name} flies off the track. Out of the race.`,`${r.name} tercampak keluar litar. Tersingkir.`):t(`${r.name} (${r.code}) flies off the track and is out.`,`${r.name} (${r.code}) tercampak keluar dan tersingkir.`);
+    if(e.type==='bridgeLane') msg=t(`${r.name} targets a different lane on the bridge.`,`${r.name} menyasar lorong lain di jambatan.`);
+    if(e.type==='bridgeGain') msg=t(`${r.name} gains ${e.gain} on the bridge.`,`${r.name} naik ${e.gain} tempat di jambatan.`);
     if(e.type==='dive') msg=t(`${r.name} dives straight through the funnel!`,`${r.name} terjun terus melalui corong!`);
     if(e.type==='glide'&&r.you&&Math.random()<.35) msg=t(`${r.name} glides off the wall without losing speed.`,`${r.name} meluncur dari dinding tanpa hilang laju.`);
     if(e.type==='plough'&&(r.you||pos<8)) msg=t(`${r.name} ploughs through the sand, up ${e.gain} place${e.gain>1?'s':''}.`,`${r.name} meredah pasir, naik ${e.gain} tempat.`);
@@ -3565,7 +3610,7 @@ function finishRace(){
   if(sh.length&&!state.drama) state.drama={head:both(()=>t(`${sh[0].name} shatters at ${TRACK_DEFS[ti].name}`,`${sh[0].name} hancur di ${TRACK_DEFS[ti].name}`)),body:both(()=>sh[0].you?t('Gone for good. The team needs a new marble.','Hilang terus. Pasukan perlukan guli baru.'):t('Gone for good. Its team has a replacement.','Hilang terus. Pasukannya ada pengganti.'))};
   const winner=ord[0];
   S.results.push({trI:ti,winner:winner.name,winnerCode:winner.code,you:you.map(y=>({name:y.name,pos:y.pos}))});
-  state.lastRace={trI:ti,order:ord.map(r=>({key:r.key,name:r.name,code:r.code,c1:r.c1,c2:r.c2,tpl:r.tpl,you:!!r.you,team:r.team,dnf:!!r.dnf,shattered:!!r.shattered,out:!!r.out})),shoves:ui.mode3&&W?W.events.filter(e=>e.type==='nudge').map(e=>({by:e.key,other:e.other})).filter(e=>ord.some(r=>r.key===e.other&&r.you)).map(e=>{const r=ord.find(x=>x.key===e.by);return {name:r.name,team:r.team};}):[],you,bets,prizeTotal,betNet,fanBase,charm:state.charm,lost,spare,spon,
+  state.lastRace={trI:ti,bridge:ui.mode3?W?.bridge:undefined,order:ord.map(r=>({key:r.key,name:r.name,code:r.code,c1:r.c1,c2:r.c2,tpl:r.tpl,you:!!r.you,team:r.team,dnf:!!r.dnf,shattered:!!r.shattered,out:!!r.out})),shoves:ui.mode3&&W?W.events.filter(e=>e.type==='nudge').map(e=>({by:e.key,other:e.other})).filter(e=>ord.some(r=>r.key===e.other&&r.you)).map(e=>{const r=ord.find(x=>x.key===e.by);return {name:r.name,team:r.team};}):[],you,bets,prizeTotal,betNet,fanBase,charm:state.charm,lost,spare,spon,
     mom:ui.mom||null,pre:state.pre||null,wlog:state.wlog?JSON.parse(JSON.stringify(state.wlog)):null,zt:(TRACK_DEFS[ti].zones||[]).map(z=>z[2]),
     photo:(()=>{const a=ord[0],b=ord[1]; if(!a||!b||a.dnf||b.dnf||!(a.ft>0&&b.ft>0)) return null; const gap=b.ft-a.ft; if(gap>=.1||!(a.you||b.you)) return null; return {you:true,gap,other:a.you?b.name:a.name};})()};
   state.roster.forEach(m=>{ if(state.entries.includes(m.id)) delete m.fresh; }); state.pre=null;
@@ -3619,6 +3664,7 @@ function showResults(){
     ${lostNote}${betRows?`<div class="slip">${betRows}</div>`:''}
     ${L.spon?`<div class="slip"><div class="slip-row"><span class="grow">${ic('ticket')} ${esc(L.spon.name)} · ${t('race budget','bajet perlumbaan')}</span><strong class="pos">+${fmt(L.spon.base)}</strong></div>${L.spon.res.map(r=>`<div class="slip-row"><span class="grow">${r.ok?ic('check'):'✕'} ${tx(r.txt)}</span><strong class="${r.ok?'pos':'neg'}">${r.ok?'+'+fmt(r.bonus):t('Missed','Terlepas')}</strong></div>`).join('')}</div>`:''}
     <details class="fullres"><summary>${t('Full classification','Keputusan penuh')}</summary><div style="overflow-x:auto"><table class="res-table">${rows}</table></div></details>
+    ${bridgeRecap(L.bridge)}
     ${nextRaceStakes()}
     <div class="actions"><button class="btn btn-primary" data-act="continueResults" data-v="raceday">${lastRound?t('See season standings','Lihat kedudukan musim'):t('Next race','Perlumbaan seterusnya')}</button>
       ${lastRound?'':`<button class="btn" data-act="continueResults" data-v="garage">${t('Service & change lineup','Servis & tukar barisan')}</button>`}
@@ -4375,6 +4421,7 @@ function finishQuickRace(){
   const order=rOrder();
   modal(`<h2>${t('Quick Race results','Keputusan Lumba Pantas')}</h2>
     <p>${esc(TRACK_DEFS[quick.track].name)}</p>
+    ${bridgeRecap(ui.mode3?W?.bridge:null)}
     <div class="sumgrid">${order.map((r,i)=>r.you?`<div class="sum"><div class="k">${esc(r.name)}</div><div class="v">${r.dnf?'DNF':'P'+(i+1)}</div></div>`:'').join('')}</div>
     <div class="actions"><button class="btn btn-primary" data-act="quickAgain">${t('Race again','Lumba lagi')}</button>
       <button class="btn" data-act="quickSetup">${t('Change lineup','Tukar barisan')}</button>
