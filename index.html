@@ -24,6 +24,10 @@
 .quick-detail-stats progress{width:100%;height:8px;accent-color:var(--accent)}
 .quick-lineup{margin-top:0}
 @media(max-width:650px){.quick-layout{grid-template-columns:minmax(0,1fr)}}
+.tutorial-steps{display:grid;gap:10px;padding-left:24px}
+.tutorial-steps li{padding:10px 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--sunk)}
+.tutorial-steps li::marker{color:var(--accent);font-weight:700}
+.tutorial-steps p{margin:4px 0 0}
 </style></head><body>
 <title>MarbleRacing Manager</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><meta name="description" content="Run your own marble racing team: build marbles, pick your racers and chase the title.">
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -4479,6 +4483,17 @@ function leaveQuickRace(startCareer){
   }else if(career) resumePhase();
   else showIntro();
 }
+function showTutorial(){
+  $('#app').hidden=false; $('#hub').hidden=true; $('#tabs').hidden=true;
+  const steps=[
+    [t('Pick two marbles','Pilih dua guli'),t('Check the track preview. Match grip to corners and stability to slippery sections.','Semak pratonton litar. Pilih cengkaman untuk selekoh dan kestabilan untuk bahagian licin.')],
+    [t('Watch your team race','Tonton pasukan berlumba'),t('The marbles race automatically. At Borneo Monsoon GP in 3D, use Push, Hold or Protect to adjust how your team tackles the slick bridge.','Guli berlumba secara automatik. Di Borneo Monsoon GP dalam mod 3D, guna Serang, Kekal atau Lindung untuk ubah cara pasukan melalui jambatan licin.')],
+    [t('Read the result and try again','Semak keputusan dan cuba lagi'),t('See where your marbles finished. Retry with a different lineup or bring your selected marbles into Career.','Lihat kedudukan akhir guli. Cuba lagi dengan barisan lain atau bawa pilihan guli anda ke Kerjaya.')]
+  ];
+  modal(`<h2>${t('How to play','Cara bermain')}</h2>
+    <ol class="tutorial-steps">${steps.map(([title,body])=>`<li><strong>${title}</strong><p class="note">${body}</p></li>`).join('')}</ol>
+    <div class="actions"><button class="btn" data-act="tutorialBack">${t('Back','Kembali')}</button><button class="btn btn-primary" data-act="quickSetup">${t('Try Quick Race','Cuba Lumba Pantas')}</button></div>`);
+}
 function showIntro(name){
   $('#app').hidden=false; $('#hub').hidden=true;
   modal(`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div class="intro-art">${[['#2B5FD9','#9CC3FF'],['#6B4428','#D9B48A'],['#1F9E6E','#E2F7B0']].map((c,i)=>marbleArt({c1:c[0],c2:c[1],id:'i'+i},34)).join('')}</div>${langSwitch()}</div>
@@ -4486,7 +4501,7 @@ function showIntro(name){
   <p>${t("Your friend Faiz's marble team is broke. He'd rather hand it to a fan than shut it down, so it's yours now.",'Pasukan guli kawan anda, Faiz, sudah bankrap. Dia lebih rela serahkan kepada peminat daripada tutup, jadi kini ia milik anda.')}</p>
   <p class="note">${t('Start in M4 with three worn marbles, old tools and 600 coins. Win the team title to move up to M1.','Mula di M4 dengan tiga guli haus, alat lama dan 600 syiling. Menang gelaran pasukan untuk naik hingga M1.')}</p>
   <form id="introForm" class="field" style="margin-top:12px"><label for="teamName">${t('Team name','Nama pasukan')}</label><input id="teamName" maxlength="24" value="${esc(name??'Kilat Racing')}" autocomplete="off">
-  <div class="actions"><button class="btn btn-primary" type="submit">${t('Take over the team','Ambil alih pasukan')}</button><button type="button" class="btn" data-act="quickSetup">${t('Quick Race','Lumba Pantas')}</button></div></form>`);
+  <div class="actions"><button class="btn btn-primary" type="submit">${t('Take over the team','Ambil alih pasukan')}</button><button type="button" class="btn" data-act="quickSetup">${t('Quick Race','Lumba Pantas')}</button><button type="button" class="btn" data-act="tutorial">${t('How to play','Cara bermain')}</button></div></form>`);
 }
 /* ---------- game menu (v67): back up / restore the save, new career ---------- */
 const SAVE_TAG='marble-race-tycoon';
@@ -4578,6 +4593,8 @@ document.addEventListener('click',e=>{
         renderRaceControls();
       }
       break;
+    case 'tutorial': showTutorial(); break;
+    case 'tutorialBack': showIntro(); break;
     case 'quickSetup':
       if(quick&&!$('#raceView').hidden) showHub();
       showQuickRace(); break;
