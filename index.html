@@ -1,4 +1,15 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}
+.quick-track{position:relative}
+.quick-track select{appearance:none;width:100%;min-height:44px;padding:10px 42px 10px 12px;border:1px solid var(--line-2);border-radius:10px;background:var(--sunk);color:var(--ink);font:inherit;cursor:pointer}
+.quick-track .ic{position:absolute;right:14px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted)}
+.quick-lineup{min-width:0;border:0;padding:0;margin:18px 0 0}
+.quick-lineup legend{padding:0;margin-bottom:8px;font-size:13px;font-weight:600}
+.field .quick-marble{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:10px 12px;margin:0 0 6px;border:1px solid var(--line-2);border-radius:10px;background:var(--sunk);cursor:pointer}
+.quick-marble:has(input:checked){border-color:var(--accent)}
+.quick-marble small{display:block;color:var(--muted);font-weight:400}
+.field .quick-marble input{width:18px;height:18px;margin:0;padding:0;accent-color:var(--accent)}
+.quick-track select:focus-visible,.quick-marble:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+</style></head><body>
 <title>MarbleRacing Manager</title><link rel="icon" href="favicon.svg" type="image/svg+xml"><meta name="description" content="Run your own marble racing team: build marbles, pick your racers and chase the title.">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -4271,12 +4282,12 @@ function showQuickRace(){
   modal(`<h2>${t('Quick Race','Lumba Pantas')}</h2>
     <form id="quickForm" class="field">
       <label for="quickTrack">${t('Track','Litar')}</label>
-      <select id="quickTrack" name="track">${TRACK_DEFS.map((tr,i)=>`<option value="${i}" ${i===quick.track?'selected':''}>${esc(tr.name)}</option>`).join('')}</select>
-      <fieldset><legend>${t('Pick two marbles','Pilih dua guli')}</legend>
+      <div class="quick-track"><select id="quickTrack" name="track">${TRACK_DEFS.map((tr,i)=>`<option value="${i}" ${i===quick.track?'selected':''}>${esc(tr.name)}</option>`).join('')}</select>${ic('chevdown')}</div>
+      <fieldset class="quick-lineup"><legend>${t('Pick two marbles','Pilih dua guli')}</legend>
       ${state.roster.map(m=>{
         const stats=[m.sp,m.gr,m.st], strongest=stats.indexOf(Math.max(...stats));
         const style=MONSOON_STYLES[hashStr(String(m.id))%MONSOON_STYLES.length];
-        return `<label style="display:block;margin:.6em 0"><input type="checkbox" name="marble" value="${esc(String(m.id))}" ${state.entries.includes(m.id)?'checked':''}> ${esc(m.name)} · ${[t('Speed','Kelajuan'),t('Grip','Cengkaman'),t('Stability','Kestabilan')][strongest]} · ${style}</label>`;
+        return `<label class="quick-marble">${marbleArt(m,30)}<span><strong>${esc(m.name)}</strong><small>${[t('Speed','Kelajuan'),t('Grip','Cengkaman'),t('Stability','Kestabilan')][strongest]} · ${style}</small></span><input type="checkbox" name="marble" value="${esc(String(m.id))}" ${state.entries.includes(m.id)?'checked':''}></label>`;
       }).join('')}</fieldset>
       <div class="actions"><button type="submit" class="btn btn-primary">${t('Start race','Mula lumba')}</button><button type="button" class="btn" data-act="quickExit">${t('Back','Kembali')}</button></div>
     </form>`);
