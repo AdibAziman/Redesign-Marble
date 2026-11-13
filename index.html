@@ -1145,7 +1145,7 @@ const tplOf=(id,mat)=>{const l=TPL_BY_MAT[mat]||['swirl'];return l[hashStr(Strin
 function hsl2hex(h,s,l){h=((h%360)+360)%360;s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase();}
 function randPair(){const h=rnd(0,360),mode=Math.random();const h2=mode<.4?h+rnd(150,210):mode<.75?h+rnd(25,60):h;
   return [hsl2hex(h,rnd(60,85),rnd(36,52)),mode>=.75?hsl2hex(h2,rnd(30,60),rnd(80,92)):hsl2hex(h2,rnd(60,90),rnd(62,80))];}
-const MONSOON_TRACK=8;
+const MONSOON_TRACK=8, WATERFRONT_TRACK=9;
 const TRACK_DEFS = [ // v81: names from the user; the 2D outline (fallback race) is traced from the 3D plan
   {get name(){return t('Lake Village','Desa Tasik')},get blurb(){return t('Home track: banked ends, a bus-stop chicane and the big funnel.','Litar rumah: hujung condong, cikan dan corong besar.')},get pts(){return pts3(0);},get zones(){return zones3(0);}},
   {get name(){return t('Sandbanks GP','GP Beting Pasir')},get blurb(){return t('Sand almost all the way round. Grip and weight win here.','Pasir hampir sepanjang litar. Cengkaman dan berat menang di sini.')},get pts(){return pts3(1);},get zones(){return zones3(1);}},
@@ -1156,6 +1156,7 @@ const TRACK_DEFS = [ // v81: names from the user; the 2D outline (fallback race)
   {get name(){return t('Plinko City','Bandar Plinko')},get blurb(){return t('Two peg boards, a splitter and a hairpin that turns back on itself. Anything can happen.','Dua papan pin, pemisah dan selekoh pin rambut berpatah balik. Apa-apa boleh berlaku.')},get pts(){return pts3(6);},get zones(){return zones3(6);}},
   {get name(){return t('Lembah Highlands','Tanah Tinggi Lembah')},get blurb(){return t('Valley esses, a windmill straight, a jump and a trapdoor gate. Timing is luck.','Selekoh S lembah, kincir angin, lompatan dan pintu perangkap. Masa ialah tuah.')},get pts(){return pts3(7);},get zones(){return zones3(7);}},
   {name:'Borneo Monsoon GP',get blurb(){return t('A downhill sprint through a slick bridge and a banked finish.','Pecut menuruni bukit melalui jambatan licin dan selekoh condong.');},get pts(){return pts3(MONSOON_TRACK);},get zones(){return zones3(MONSOON_TRACK);}},
+  {name:"Kuching Waterfront Night GP",get blurb(){return t("A riverside sprint with a divided bend and a late merge.","Pecutan tepi sungai dengan dua laluan di selekoh yang bercantum sebelum penamat.");},get pts(){return pts3(WATERFRONT_TRACK);},get zones(){return zones3(WATERFRONT_TRACK);}},
 ];
 const TRACK_CACHE = {};
 function buildTrack(i){
@@ -1271,6 +1272,15 @@ const LAB_CTRL=[[0,14,0],[6,13.4,0],[12,12.6,1],[15,12,5],[12,11.3,9],[5,10.6,10
 // F1-style layouts: long straights into tight banked hairpins, quick chicanes, a few fast sweepers.
 // Pieces: line, arc (+ang = left), hairpin {r, dir}, chicane {r, ang}, spiral, funnel, jump. 'wall' raises the walls; tight arcs get taller walls automatically.
 const TRACK3_DEFS={
+  [WATERFRONT_TRACK]:{laps:1,slope:.17,pieces:[
+    {t:'line',len:13,zone:'straight'},
+    {t:'arc',r:7,ang:-45,wall:.55},
+    {t:'line',len:8,w:4.6,zone:'straight'},
+    {t:'arc',r:9,ang:105,w:4.6,wall:.65,bank:0,zone:'split'},
+    {t:'line',len:7,w:4.6,zone:'straight'},
+    {t:'arc',r:6,ang:-60,wall:.65,bank:.5},
+    {t:'line',len:12,zone:'straight'}
+  ]},
   [MONSOON_TRACK]:{slope:.21,pieces:[
     {t:'line',len:11,zone:'straight'},
     {t:'arc',r:6,ang:55,wall:.6},
@@ -1398,7 +1408,7 @@ function buildTrack3(ti){
   for(let i=0;i<N;){ if(zoneOf[i]!=='pegs'){i++;continue;} let e=i;while(e<N&&zoneOf[e]==='pegs')e++;
     for(let q=i+5,r=0;q<e-5;q+=Math.max(2,Math.round(.55/ds)),r++){ const hw=wOf[q]/2-.32; for(let o=-hw+(r%2?.23:0);o<=hw;o+=.46) pegAt(q,o); } i=e; }
   for(let i=0;i<N;){ if(zoneOf[i]!=='split'){i++;continue;} let e=i;while(e<N&&zoneOf[e]==='split')e++;
-    for(let q=i+6;q<e-6;q+=2) walls.push({i:q,len:ds*2.05}); for(let q=i+10,k=0;q<e-8;q+=Math.round(1.1/ds),k++) pegAt(q,-wOf[q]/4+(k%2?.18:-.18)); i=e; }
+    for(let q=i+6;q<e-6;q+=2) walls.push({i:q,len:ds*2.05}); for(let q=ti===WATERFRONT_TRACK?e:i+10,k=0;q<e-8;q+=Math.round(1.1/ds),k++) pegAt(q,-wOf[q]/4+(k%2?.18:-.18)); i=e; }
   for(let i=0;i<N;){ if(zoneOf[i]!=='slalom'){i++;continue;} let e=i;while(e<N&&zoneOf[e]==='slalom')e++;
     for(let q=i+3,k=0;q<e-3;q+=Math.round(4.6/ds),k++){const off=(k%2?1:-1)*wOf[q]*.22,p=v3.add(v3.add(pts[q],v3.mul(S[q],off)),v3.mul(U[q],.16));pegs.push({i:q,p,q:quatBasis(S[q],U[q],T[q]),U:U[q]});}
     i=e; }
@@ -1572,6 +1582,30 @@ function recordBridge(W){
     }
   });
 }
+function recordWaterfront(W){
+  const rows=W.waterfront||(W.waterfront=[]);
+  const order=order3(W);
+  order.forEach((b,i)=>{
+    if(!b.you) return;
+    const idx=b.idx, split=W.tr.zoneOf[idx]==='split';
+    const row=rows.find(r=>r.key===b.key);
+    if(row){
+      if(!row.exit&&!b.done&&!split&&idx>W.tr.zoneOf.lastIndexOf('split')) row.exit=i+1;
+      return;
+    }
+    if(!split||!b.body||b.done) return;
+    const p=b.body.translation(), q=W.tr.pts[idx], s=W.tr.S[idx];
+    const lateral=(p.x-q[0])*s[0]+(p.z-q[2])*s[2];
+    if(Math.abs(lateral)<.16) return;
+    rows.push({key:b.key,name:b.name,inner:lateral>0,entry:i+1});
+  });
+}
+function waterfrontRecap(rows){
+  if(!rows?.length) return '';
+  return `<section class="dc"><h3 class="dc-t">${t('Waterfront split','Cabang Waterfront')}</h3>
+    ${rows.map(r=>`<p><strong>${esc(r.name)}</strong> · ${r.inner?t('Inside lane','Laluan dalam'):t('Outside lane','Laluan luar')}<br>
+    <span class="note">P${r.entry} → ${r.exit?'P'+r.exit:t('No merge recorded','Tiada rekod cantuman')}</span></p>`).join('')}</section>`;
+}
 function bridgeRecap(rows){
   if(!rows?.length) return '';
   return `<section class="dc"><h3 class="dc-t">${t('Bridge tactics','Taktik jambatan')}</h3>
@@ -1713,6 +1747,7 @@ function stepWorld3(W){
     else { const c=((W.t+mc.phase)%mc.period)/mc.period, target=c>.62?1.15:0; mc.open+=(target-mc.open)*.1; const q=v3.add(mc.p0,v3.mul(mc.U,mc.open)); mc.body.setNextKinematicTranslation({x:q[0],y:q[1],z:q[2]}); } });
   W.world.step();
   if(W.started&&tr.monsoon) recordBridge(W);
+  if(W.started&&tr.ti===WATERFRONT_TRACK) recordWaterfront(W);
   if(W.started&&W.t-W.t0>320){W.balls.filter(b=>!b.done).sort((a,b)=>b.prog-a.prog).forEach(b=>{b.done=true;b.ft=W.t-W.t0;b.place=++W.placed;W.finished++;});}
 }
 const order3=W=>W.balls.slice().sort((a,b)=>{if(a.done&&b.done)return a.place-b.place;if(a.done)return -1;if(b.done)return 1;return b.prog-a.prog;});
@@ -2988,10 +3023,10 @@ function scenery3(scene){ const L=scene.userData.lake; if(!L) return null; const
   return t=>{ tex.offset.x=t*.011; tex.offset.y=Math.sin(t*.23)*.03; const b=st.boat; if(b){ b.position.y=st.by+Math.sin(t*1.6)*.03; b.rotation.z=Math.sin(t*1.25)*.05; b.rotation.x=Math.sin(t*.9+1)*.03; b.rotation.y=st.yaw+Math.sin(t*.31)*.06; } }; }
 function sceneFor(ti){
   if(S3[ti]) return S3[ti];
-  const T=R3.T, tr=buildTrack3(ti), c=tr.center, TH=THEME3[ti%THEME3.length], sky=TH.fog;
+  const T=R3.T, tr=buildTrack3(ti), c=tr.center, TH=ti===WATERFRONT_TRACK?{...THEME3[0],fog:'#0b1429',ground:'#10283d',pad:'#17324b'}:THEME3[ti%THEME3.length], sky=TH.fog;
   const scene=new T.Scene(); scene.background=new T.Color(sky); scene.fog=new T.Fog(sky,tr.span*2.4,tr.span*5+40);
   scene.add(new T.HemisphereLight('#f2f8ff','#7d8a6c',1.15));
-  const sun=new T.DirectionalLight('#fff4e2',2.3); const topY=Math.max(...tr.pts.map(p=>p[1])); sun.position.set(c[0]+18,topY+26,c[2]+22); sun.castShadow=true; sun.shadow.mapSize.set(COARSE()?1024:2048,COARSE()?1024:2048);
+  const sun=new T.DirectionalLight(ti===WATERFRONT_TRACK?'#b9d1ff':'#fff4e2',ti===WATERFRONT_TRACK?1.6:2.3); const topY=Math.max(...tr.pts.map(p=>p[1])); sun.position.set(c[0]+18,topY+26,c[2]+22); sun.castShadow=true; sun.shadow.mapSize.set(COARSE()?1024:2048,COARSE()?1024:2048);
   const sc=sun.shadow.camera, ext=tr.span+6; sc.left=-ext;sc.right=ext;sc.top=ext;sc.bottom=-ext;sc.near=1;sc.far=topY+120; sun.shadow.bias=-.0005; sun.target.position.set(c[0],c[1]*.5,c[2]); scene.add(sun,sun.target);
   const ground=new T.Mesh(new T.CircleGeometry(170,64),new T.MeshStandardMaterial({color:TH.ground,roughness:1})); ground.rotation.x=-Math.PI/2; ground.position.set(c[0],0,c[2]); ground.receiveShadow=true; scene.add(ground);
   const pad=new T.Mesh(new T.CircleGeometry(tr.span+5,64),new T.MeshStandardMaterial({color:TH.pad,roughness:1})); pad.rotation.x=-Math.PI/2; pad.position.set(c[0],.01,c[2]); pad.receiveShadow=true; scene.add(pad);
@@ -3610,7 +3645,7 @@ function finishRace(){
   if(sh.length&&!state.drama) state.drama={head:both(()=>t(`${sh[0].name} shatters at ${TRACK_DEFS[ti].name}`,`${sh[0].name} hancur di ${TRACK_DEFS[ti].name}`)),body:both(()=>sh[0].you?t('Gone for good. The team needs a new marble.','Hilang terus. Pasukan perlukan guli baru.'):t('Gone for good. Its team has a replacement.','Hilang terus. Pasukannya ada pengganti.'))};
   const winner=ord[0];
   S.results.push({trI:ti,winner:winner.name,winnerCode:winner.code,you:you.map(y=>({name:y.name,pos:y.pos}))});
-  state.lastRace={trI:ti,bridge:ui.mode3?W?.bridge:undefined,order:ord.map(r=>({key:r.key,name:r.name,code:r.code,c1:r.c1,c2:r.c2,tpl:r.tpl,you:!!r.you,team:r.team,dnf:!!r.dnf,shattered:!!r.shattered,out:!!r.out})),shoves:ui.mode3&&W?W.events.filter(e=>e.type==='nudge').map(e=>({by:e.key,other:e.other})).filter(e=>ord.some(r=>r.key===e.other&&r.you)).map(e=>{const r=ord.find(x=>x.key===e.by);return {name:r.name,team:r.team};}):[],you,bets,prizeTotal,betNet,fanBase,charm:state.charm,lost,spare,spon,
+  state.lastRace={trI:ti,waterfront:ui.mode3?W?.waterfront:undefined,bridge:ui.mode3?W?.bridge:undefined,order:ord.map(r=>({key:r.key,name:r.name,code:r.code,c1:r.c1,c2:r.c2,tpl:r.tpl,you:!!r.you,team:r.team,dnf:!!r.dnf,shattered:!!r.shattered,out:!!r.out})),shoves:ui.mode3&&W?W.events.filter(e=>e.type==='nudge').map(e=>({by:e.key,other:e.other})).filter(e=>ord.some(r=>r.key===e.other&&r.you)).map(e=>{const r=ord.find(x=>x.key===e.by);return {name:r.name,team:r.team};}):[],you,bets,prizeTotal,betNet,fanBase,charm:state.charm,lost,spare,spon,
     mom:ui.mom||null,pre:state.pre||null,wlog:state.wlog?JSON.parse(JSON.stringify(state.wlog)):null,zt:(TRACK_DEFS[ti].zones||[]).map(z=>z[2]),
     photo:(()=>{const a=ord[0],b=ord[1]; if(!a||!b||a.dnf||b.dnf||!(a.ft>0&&b.ft>0)) return null; const gap=b.ft-a.ft; if(gap>=.1||!(a.you||b.you)) return null; return {you:true,gap,other:a.you?b.name:a.name};})()};
   state.roster.forEach(m=>{ if(state.entries.includes(m.id)) delete m.fresh; }); state.pre=null;
@@ -3665,6 +3700,7 @@ function showResults(){
     ${L.spon?`<div class="slip"><div class="slip-row"><span class="grow">${ic('ticket')} ${esc(L.spon.name)} · ${t('race budget','bajet perlumbaan')}</span><strong class="pos">+${fmt(L.spon.base)}</strong></div>${L.spon.res.map(r=>`<div class="slip-row"><span class="grow">${r.ok?ic('check'):'✕'} ${tx(r.txt)}</span><strong class="${r.ok?'pos':'neg'}">${r.ok?'+'+fmt(r.bonus):t('Missed','Terlepas')}</strong></div>`).join('')}</div>`:''}
     <details class="fullres"><summary>${t('Full classification','Keputusan penuh')}</summary><div style="overflow-x:auto"><table class="res-table">${rows}</table></div></details>
     ${bridgeRecap(L.bridge)}
+    ${waterfrontRecap(L.waterfront)}
     ${nextRaceStakes()}
     <div class="actions"><button class="btn btn-primary" data-act="continueResults" data-v="raceday">${lastRound?t('See season standings','Lihat kedudukan musim'):t('Next race','Perlumbaan seterusnya')}</button>
       ${lastRound?'':`<button class="btn" data-act="continueResults" data-v="garage">${t('Service & change lineup','Servis & tukar barisan')}</button>`}
@@ -4422,6 +4458,7 @@ function finishQuickRace(){
   modal(`<h2>${t('Quick Race results','Keputusan Lumba Pantas')}</h2>
     <p>${esc(TRACK_DEFS[quick.track].name)}</p>
     ${bridgeRecap(ui.mode3?W?.bridge:null)}
+    ${waterfrontRecap(ui.mode3?W?.waterfront:null)}
     <div class="sumgrid">${order.map((r,i)=>r.you?`<div class="sum"><div class="k">${esc(r.name)}</div><div class="v">${r.dnf?'DNF':'P'+(i+1)}</div></div>`:'').join('')}</div>
     <div class="actions"><button class="btn btn-primary" data-act="quickAgain">${t('Race again','Lumba lagi')}</button>
       <button class="btn" data-act="quickSetup">${t('Change lineup','Tukar barisan')}</button>
