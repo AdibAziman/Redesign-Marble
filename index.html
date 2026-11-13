@@ -2297,7 +2297,7 @@ function renderRaceControls(){
   $('#speedBtns').innerHTML=`<button class="btn btn-sm" data-act="pause" aria-pressed="${!!ui.paused}" aria-label="${pl}" title="${pl}">${ic(ui.paused?'play':'pause')}</button>`+
     [1,2,4].map(v=>`<button class="btn btn-sm" data-act="speed" data-v="${v}" aria-pressed="${simSpeed===v}">${ic(v===1?'play':'ff')}${v}×</button>`).join('')+
     `<button class="btn btn-sm" data-act="skip">${ic('skip')}${t('Skip','Langkau')}</button>`+orders+
-    (voice?`<button class="btn btn-sm" data-act="raceVoice" aria-pressed="${raceVoice}">${ic('mic')}${raceVoice?t('Voice on','Suara hidup'):t('Voice off','Suara mati')}</button>`:'');
+    (voice?`<button class="btn btn-sm" data-act="raceVoice" aria-pressed="${raceVoice}">${ic('mic')}${raceVoice?t('Voice on','Suara hidup'):t('Voice off','Suara mati')}</button>${raceVoice?`<button class="btn btn-sm" data-act="voiceTest">${t('Test voice','Uji suara')}</button>`:''}`:'');
 }
 function startRace(){
   voice?.cancel(); voiceAfter=0;
@@ -2432,13 +2432,20 @@ function speakMarble(text,priority=false){
   if(!voice||!window.SpeechSynthesisUtterance||!text) return;
   const now=performance.now();
   if(!priority&&(now<voiceAfter||voice.speaking||voice.pending)) return;
-  if(priority) voice.cancel();
+  if(priority&&(voice.speaking||voice.pending)) voice.cancel();
+  if(voice.paused) voice.resume();
   const line=new SpeechSynthesisUtterance(text);
   line.lang=LANG==='bm'?'ms-MY':'en-GB';
   const voices=voice.getVoices(), language=line.lang.split('-')[0];
   const match=voices.find(v=>v.lang.toLowerCase()===line.lang.toLowerCase())
     ||voices.find(v=>v.lang.toLowerCase().split(/[-_]/)[0]===language);
-  if(match) line.voice=match;
+  const selected=match||voices.find(v=>v.default)||voices[0];
+  if(selected){line.voice=selected;line.lang=selected.lang;}
+  line.onerror=event=>{
+    if(priority&&!['canceled','interrupted'].includes(event.error)){
+      toast(t('Voice could not play','Suara gagal dimainkan')+' ('+event.error+')');
+    }
+  };
   line.rate=1.04;
   voiceAfter=now+3800;
   voice.speak(line);
@@ -4634,6 +4641,9 @@ document.addEventListener('click',e=>{
       if(raceVoice) speakMarble(t('Live commentary is on.','Ulasan langsung dihidupkan.'),true);
       else voice?.cancel();
       renderRaceControls();
+      break;
+    case 'voiceTest':
+      speakMarble(t('Welcome to Marble Racing Manager.','Selamat datang ke Marble Racing Manager.'),true);
       break;
     case 'tutorialVoice': {
       const guide=$('.tutorial-steps');
