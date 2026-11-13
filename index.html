@@ -3501,6 +3501,8 @@ const trackName=L=>L.trI!=null?TRACK_DEFS[L.trI].name:(L.track||'');
 function showResults(){
   const L=state.lastRace, best=Math.min(...L.you.map(y=>y.dnf?99:y.pos));
   const head=best===1?t('Victory!','Kemenangan!'):best<=3?t('Podium finish','Naik podium'):best<=10?t('Points on the board','Dapat mata'):t('A tough day','Hari yang sukar');
+  const points=L.you.reduce((total,y)=>total+(y.pts||0),0);
+  const lastRound=state.season.raceIdx+1>=state.season.calendar.length;
   const top=L.order.slice(0,3);
   const podium=[1,0,2].map(i=>{const r=top[i];if(!r)return '<div></div>';
     return `<div class="step p${i+1} ${r.you?'you':''}">${i===0?`<span class="crown">${ic('trophy')}</span>`:''}${marbleArt({c1:r.c1||'#8A9AA2',c2:r.c2||'#DDE3E6',id:r.key,tpl:r.tpl},i===0?42:34)}${r.team?`<span class="pflag">${flagOf(r.team,22)}</span>`:''}<span class="nm">${esc(r.name)}</span><span class="note">${esc(r.code)}</span><span class="pl">P${i+1}</span></div>`;}).join('');
@@ -3510,15 +3512,20 @@ function showResults(){
   const tk=TROPHY_K[best-1], bm=tk?L.you.find(y=>!y.dnf&&y.pos===best):null;
   const trophy=tk?`<div class="trophy3 t-${tk}"><div class="t3slot" id="t3slot"><span class="ticon">${ic('trophy')}</span></div><div class="tcap"><strong>${trophyName(tk)}</strong><span class="note">${esc(bm?bm.name:'')} · P${best}</span></div></div>`:'';
   modal(`<div class="eyebrow">${ic('flag')}${esc(trackName(L))} · ${t('Results','Keputusan')}</div><h2>${head}</h2>
+    <p class="note">${t('Team points earned','Mata pasukan diperoleh')} · <strong>+${points}</strong></p>
     ${trophy}<div class="podium">${podium}</div>
     <div class="sumgrid">
-      ${L.you.map(y=>`<div class="sum"><div class="k">${esc(y.name)}</div><div class="v ${y.dnf?'neg':''}">${y.dnf?'DNF':'P'+y.pos}</div><div class="k">${y.shattered?t('Shattered','Hancur'):y.out?t(`Off the track · cond -${y.wear}%`,`Keluar litar · keadaan -${y.wear}%`):`${coins(y.prize)} · ${t('cond','keadaan')} -${y.wear}%${y.cracked?' · '+t('cracked','retak'):''}`}</div></div>`).join('')}
+      ${L.you.map(y=>`<div class="sum"><div class="k">${esc(y.name)}</div><div class="v ${y.dnf?'neg':''}">${y.grid>0?'P'+y.grid+' → ':''}${y.dnf?'DNF':'P'+y.pos}</div>
+      ${!y.dnf&&y.grid>0&&y.grid!==y.pos?`<div class="k">${y.grid>y.pos?'+':''}${y.grid-y.pos} ${t('places','tempat')}</div>`:''}
+      ${byId(y.id)?`<div class="k">${t('Crack risk','Risiko retak')} · ${RISK_NAME()[crackRisk(byId(y.id))]}</div>`:''}<div class="k">${y.shattered?t('Shattered','Hancur'):y.out?t(`Off the track · cond -${y.wear}%`,`Keluar litar · keadaan -${y.wear}%`):`${coins(y.prize)} · ${t('cond','keadaan')} -${y.wear}%${y.cracked?' · '+t('cracked','retak'):''}`}</div></div>`).join('')}
       <div class="sum"><div class="k">${t('Bets','Taruhan')}${L.charm?t(' (charm +25%)',' (tangkal +25%)'):''}</div><div class="v ${L.betNet>0?'pos':L.betNet<0?'neg':''}">${L.bets.length?(L.betNet>=0?'+':'')+fmt(L.betNet):t('None','Tiada')}</div></div>
     </div>
     ${lostNote}${betRows?`<div class="slip">${betRows}</div>`:''}
     ${L.spon?`<div class="slip"><div class="slip-row"><span class="grow">${ic('ticket')} ${esc(L.spon.name)} · ${t('race budget','bajet perlumbaan')}</span><strong class="pos">+${fmt(L.spon.base)}</strong></div>${L.spon.res.map(r=>`<div class="slip-row"><span class="grow">${r.ok?ic('check'):'✕'} ${tx(r.txt)}</span><strong class="${r.ok?'pos':'neg'}">${r.ok?'+'+fmt(r.bonus):t('Missed','Terlepas')}</strong></div>`).join('')}</div>`:''}
     <details class="fullres"><summary>${t('Full classification','Keputusan penuh')}</summary><div style="overflow-x:auto"><table class="res-table">${rows}</table></div></details>
-    <div class="actions"><button class="btn btn-primary" data-act="toPress">${ic('mic')}${t('Press conference','Sidang media')}</button></div>`);
+    <div class="actions"><button class="btn btn-primary" data-act="continueResults" data-v="raceday">${lastRound?t('See season standings','Lihat kedudukan musim'):t('Next race','Perlumbaan seterusnya')}</button>
+      ${lastRound?'':`<button class="btn" data-act="continueResults" data-v="garage">${t('Service & change lineup','Servis & tukar barisan')}</button>`}
+      <button class="btn btn-link" data-act="toPress">${ic('mic')}${t('Press conference','Sidang media')}</button></div>`);
   if(tk) mountTrophy(tk);
 }
 
@@ -3787,7 +3794,7 @@ function answer(i){
   P.react=tx(rx); P.reactB=rx; P.i++;
   if(P.i<P.qs.length){ save(); showPress(); } else finishWeek();
 }
-function finishWeek(){
+function finishWeek(destination){
   const P=state.press,L=state.lastRace, moodBefore=state.mood;
   const N=nemesis(); N.heat=clamp(N.heat+(P.heat||0),0,100); if(N.heat>=60){ state.firedUp=N.k; }
   // fans: results bring new fans (podiums also snowball: +6% of current fans); a bad weekend loses a big share
@@ -3800,6 +3807,7 @@ function finishWeek(){
   if(state.mood>85&&Math.random()<.4){ const k=pick(['wax','fix','charm','gyro']); state.items[k]++; gifts.push({k,from:pick(FORUM)}); }
   const notes={wax:t('For the next sand race!','Untuk perlumbaan pasir seterusnya!'),fix:t('Keep the old marbles rolling.','Pastikan guli lama terus bergolek.'),charm:t('For luck. Bet big!','Untuk tuah. Bertaruh besar!'),compound:t('Found this in my late uncle’s workshop. Use it well.','Jumpa ni dalam bengkel arwah pak cik saya. Guna baik-baik.')};
   state.press=null; state.phase='summary';
+  if(destination){ nextRace(destination); return; }
   const giftHtml=gifts.map(g=>`<div class="gift"><span class="avatar" aria-hidden="true">${ic(ITEM_IC[g.k])}</span><div>${t(`<strong>${esc(g.from)}</strong> sent you <strong>${ITEMS[g.k].name}</strong>`,`<strong>${esc(g.from)}</strong> menghantar <strong>${ITEMS[g.k].name}</strong> kepada anda`)}<div class="note">“${notes[g.k]}”</div></div></div>`).join('');
   const md=state.mood-moodBefore;
   save(); renderTop();
@@ -3815,10 +3823,12 @@ function finishWeek(){
     ${giftHtml||`<p class="note">${t('No fan gifts this week.','Tiada hadiah peminat minggu ini.')}</p>`}
     <div class="actions"><button class="btn btn-primary" data-act="nextRace">${state.season.raceIdx+1>=state.season.calendar.length?t('See season standings','Lihat kedudukan musim'):t('Back to the garage','Kembali ke garaj')}</button></div>`);
 }
-function nextRace(){
+function nextRace(destination){
   state.season.raceIdx++;
   if(state.season.raceIdx>=state.season.calendar.length){ endSeason(); return; }
-  state.phase='hub'; startWeek(); save(); closeModal(); showHub();
+  state.phase='hub'; startWeek(); save(); closeModal();
+  if(destination) ui.tab=destination;
+  showHub();
 }
 function teamTable(){
   const S=state.season; return Object.keys(S.teamPts).map(k=>({k,name:teamOf(k).name,code:teamOf(k).code,pts:S.teamPts[k]})).sort((a,b)=>b.pts-a.pts||(a.k==='you'?-1:1));
@@ -4281,6 +4291,11 @@ document.addEventListener('click',e=>{
     case 'tags': ui.noTags=!ui.noTags; try{localStorage.setItem('marble-race-tycoon-notags',ui.noTags?'1':'0');}catch(e){} renderCams(); tags3(); break;
     case 'walkSkip': endWalk(true); break;
     case 'towerToggle': towerToggle(); break;
+    case 'continueResults':
+      if(state.phase!=='results') break;
+      state.press={heat:0,mood:0,mult:1,best:Math.min(...state.lastRace.you.map(y=>y.dnf?99:y.pos))};
+      finishWeek(v==='garage'?'garage':'raceday');
+      break;
     case 'toPress': buildPress(); state.phase='press'; save(); showPress(); break;
     case 'answer': answer(+v); break;
     case 'nextRace': nextRace(); break;
