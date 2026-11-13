@@ -4291,7 +4291,13 @@ function setLang(l){
 function showQuickRace(){
   if(!quick){
     quick={career:state,tab:ui.tab,track:MONSOON_TRACK};
-    newCareer('Kilat Racing');
+    if(quick.career){
+      state=JSON.parse(JSON.stringify(quick.career));
+      state.phase='hub';
+      state.bets=[];
+      state.charm=false;
+      state.roster.forEach(m=>{m.cond=100;m.boost={};});
+    }else newCareer('Kilat Racing');
   }
   $('#hub').hidden=true; $('#tabs').hidden=true;
   modal(`<h2>${t('Quick Race','Lumba Pantas')}</h2>
