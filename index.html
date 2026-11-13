@@ -746,7 +746,7 @@ body::before{background:var(--nav)}
   .teamhead .team-flag-btn svg{width:42px;height:28px}
 }
 /* Race Day dashboard */
-.dash{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"st ga nx" "st ga bt" "nw go go" "sp sp sp" "cal cal fz";align-items:stretch}
+.dash{display:grid;gap:16px;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-areas:"nx nx st" "ga ga st" "nw nw sp" "cal cal fz";align-items:stretch}
 .dash .spon-offers{grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
 .sheet:has(.spon-gate){width:min(900px,100%)}
 .sheet:has(.pull-sheet){width:min(520px,100%)}
@@ -770,8 +770,8 @@ body::before{background:var(--nav)}
 
 .dash .cal{grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
 .dash .friend{align-self:start}
-@media (max-width:1100px){.dash{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"nx bt" "go go" "st ga" "nw nw" "sp sp" "cal cal" "fz fz"}}
-@media (max-width:700px){.dash{grid-template-columns:minmax(0,1fr);grid-template-areas:"nx" "go" "ga" "bt" "st" "nw" "sp" "cal" "fz"}}
+@media (max-width:1100px){.dash{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"nx nx" "ga st" "nw nw" "sp sp" "cal cal" "fz fz"}}
+@media (max-width:700px){.dash{grid-template-columns:minmax(0,1fr);grid-template-areas:"nx" "ga" "st" "nw" "sp" "cal" "fz"}}
 .dc{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:var(--shadow);min-width:0;display:flex;flex-direction:column;gap:12px}
 .dc-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .dc-t{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.2;display:flex;align-items:center;gap:10px;margin:0}
@@ -4133,33 +4133,24 @@ function panelRaceDay(){ // v70: Race Day is a dashboard (user's mockup): standi
         <button class="btn dg-in" data-act="enter" data-id="${m.id}" aria-pressed="${inn}">${inn?ic('check')+t('Racing','Berlumba'):t('Enter race','Masuk lumba')}</button></div>
         <div class="dg-stats">${SK.map(([k,s,j])=>`<div class="dg-s"><span class="k">${k}</span><span class="bar" title="${m[s]} / ${m.cap[j]}"><i style="width:${Math.min(100,m[s]/m.cap[j]*100)}%"></i></span><span class="v">${m[s]}</span></div>`).join('')}</div></div>`; }).join('')}</div>
     <div class="dc-foot"><button class="btn btn-link" data-act="tab" data-v="garage">${t('Manage garage','Urus garaj')}${ic('arrow')}</button><button class="btn btn-primary btn-link" data-act="tab" data-v="garage">${ic('wrench')}${t('Upgrade','Naik taraf')}</button></div></section>`;
+  const recommended=state.roster.filter(m=>m.cond>=70).slice().sort((a,b)=>{
+    const score=m=>fv.w[0]*m.sp+fv.w[1]*m.gr+fv.w[2]*m.st;
+    return score(b)-score(a);
+  }).slice(0,2);
   const nx=`<section class="dc" style="grid-area:nx"><div class="dc-h"><h3 class="dc-t" style="color:var(--accent)">${ic('flag')}${t('Next race','Perlumbaan seterusnya')}</h3><span class="chip-o">${t(`Round ${ri} of ${nr}`,`Pusingan ${ri} daripada ${nr}`)}</span></div>
     <div class="nr-top"><div style="min-width:0"><h4 class="nr-t">${t('Race','Perlumbaan')} ${ri} · ${esc(tt.name)}</h4><div class="nr-line">${ic('map')}${esc(tr.name)}</div><div class="nr-line">${ic('timer')}${lapsOf(state.season.calendar[state.season.raceIdx])} ${t('laps','pusingan')}</div><div class="nr-line">${ic('gauge')}${t('Favours','Memihak')} <strong>${fv.top}</strong></div></div>
       <canvas class="mini" id="mini" aria-label="${t('Map of','Peta')} ${esc(tr.name)}"></canvas></div>
     <div class="entries">${ent.map(m=>`<div class="entry">${marbleArt(m,26)}<strong>${esc(m.name)}</strong>${(()=>{const g=gridNow.findIndex(f=>f.key===m.id);return g>=0?` <span class="grid-p" title="${gridReason()}">${t('Grid','Petak')} P${g+1}</span>`:'';})()}<span class="cond ${condCls(m.cond)}">${ic('heart')}${m.cond}%${boostTxt(m)}${m.cond<35?' · '+t('fragile','rapuh'):''}</span></div>`).join('')}${ent.length<2?`<div class="entry note">${t('Pick a second marble in the garage','Pilih guli kedua di garaj')}</div>`:''}</div>
-    <p class="note" style="margin:0">${ic('flag')} ${t('Grid','Petak')}: ${gridReason()}</p></section>`;
-  const mine=(state.odds||[]).filter(o=>o.you), sel=ui.bet?(state.odds||[]).find(o=>o.key===ui.bet.key):null, odd=sel?(ui.bet.type==='win'?sel.ow:sel.op):0, ret=sel?Math.round(ui.stake*odd*(state.charm?1.25:1)):0;
-  const bt=`<section class="dc" style="grid-area:bt"><div class="dc-h"><h3 class="dc-t">${ic('ticket')}${t(`Bet on race ${ri}`,`Taruhan perlumbaan ${ri}`)}</h3>${state.bets.length?`<span class="chip-o">${state.bets.length}/3 ${t('placed','dipasang')}</span>`:''}</div>
-    <p class="dc-s">${t('Pick a marble to win. Odds from the board.','Pilih guli untuk menang. Odds dari papan.')}</p>
-    <div class="bt-grid"><div>${mine.map(o=>`<button class="bt-row" data-act="betPick" data-id="${o.key}" data-v="win" aria-pressed="${!!(ui.bet&&ui.bet.key===o.key&&ui.bet.type==='win')}">${marbleArt({c1:o.c1,c2:o.c2,id:o.key,tpl:o.tpl},24)}<strong>${esc(o.name)}</strong><span class="od">${o.ow.toFixed(1)}</span></button>`).join('')}
-      <button class="btn btn-sm" data-act="tab" data-v="bets">${t('All odds','Semua odds')}${ic('arrow')}</button></div>
-      <div class="bt-slip"><span class="eyebrow">${ic('ticket')}${t('Bet slip','Slip taruhan')}</span><div style="font-size:14px">${sel?`<strong>${esc(sel.name)}</strong> ${ui.bet.type==='win'?t('to win','untuk menang'):t('to podium','untuk podium')} · ${odd.toFixed(1)}`:`<span class="note">${t('Pick a marble','Pilih guli')}</span>`}</div>
-        <input id="stakeInput" type="number" inputmode="numeric" min="1" max="${state.cash}" value="${ui.stake}" aria-label="${t('Stake in coins','Taruhan dalam syiling')}">
-        <div class="raceline" style="margin:0"><span>${t('Potential return','Pulangan')}</span><strong>${sel?coins(ret):'—'}</strong></div>
-        <button class="btn btn-primary" data-act="placeBet" ${!sel||state.bets.length>=3?'disabled':''}>${ic('ticket')}${t('Place bet','Pasang taruhan')}</button></div></div></section>`;
+    <p class="note" style="margin:0">${ic('flag')} ${t('Grid','Petak')}: ${gridReason()}</p>
+    ${recommended.length?`<p class="note">${t('Suggested for this track','Cadangan untuk litar ini')} · ${recommended.map(m=>esc(m.name)+' ('+m.cond+'%)').join(' · ')}</p>`:''}
+    <button class="btn btn-primary" data-act="startRace" ${ent.length<2?'disabled':''}>${ic('flag')}${t(`Start race ${ri}`,`Mula perlumbaan ${ri}`)}</button></section>`;
   const items=state.news.filter(n=>n.tag!=='friend').slice(0,2), thumb=(n,k)=>n.team!=null&&state.rivals[n.team]?flagOf('r'+n.team,44):marbleArt(ent[k]||state.roster[k%state.roster.length],40);
   const nw=`<section class="dc" style="grid-area:nw"><div class="dc-h"><h3 class="dc-t">${ic('news')}${t('News feed','Suapan berita')}</h3>${!state.newsSeen?`<span class="chip-o">${state.news.length} ${t('new','baru')}</span>`:''}</div>
     <div>${items.map((n,k)=>`<button class="dn-item" data-act="tab" data-v="news"><span class="dn-thumb">${thumb(n,k)}</span><span style="min-width:0;display:block"><span class="dn-h" style="display:block">${esc(tx(n.head))}</span><span class="dn-src" style="display:block">${esc(tx(n.src)||'')}</span><span class="dn-b">${esc(tx(n.body))}</span></span>${ic('chevright')}</button>`).join('')}</div></section>`;
-  const M=tt.machine, p=state.pull, capsPos=[[18,82],[52,92],[88,84],[30,52],[70,58],[104,50],[46,20],[86,22]];
-  const gc=`<section class="dc" style="grid-area:gc"><div class="dc-h"><h3 class="dc-t">${ic('capsule')}Gacha<span class="dim">· ${esc(M.name)}</span></h3></div>
-    <div class="gc-body"><div><p class="dc-s" style="margin:0 0 12px">${t('Open capsules to find new marbles.','Buka kapsul untuk dapat guli baru.')}</p>
-      <button class="btn btn-primary btn-link" data-act="dashPull" data-v="${state.tier}" ${state.cash<M.cost||(p&&p.pending)||ui.pullAnim?'disabled':''}>${ic('capsule')}${t('Turn the crank','Pusing engkol')} · ${fmt(M.cost)}</button></div>
-      <div class="gc-art" aria-hidden="true"><div class="gm" style="--mc:${M.color}"><div class="dome">${capsPos.map((q,i)=>`<span class="cap" style="left:${q[0]}px;top:${q[1]}px;--a:${M.caps[i%M.caps.length]};transform:rotate(${i*47}deg)"></span>`).join('')}</div><div class="body"></div><div class="crank"></div><div class="chute"></div></div></div></div></section>`;
-  const go=`<button class="go-card" data-act="startRace" ${ent.length<2?'disabled':''}>${ic('flag')}<span><span class="gt" style="display:block">${t('Race Day','Hari Lumba')}</span><span class="gs" style="display:block">${ent.length<2?t('Pick two marbles first','Pilih dua guli dulu'):t(`Start race ${ri}`,`Mula perlumbaan ${ri}`)}</span></span><span class="arrow">${ic('arrow')}</span></button>`;
   const friendNote=state.news.find(n=>n.tag==='friend');
   const cal=`<section class="dc" style="grid-area:cal"><h3 class="dc-t">${ic('timer')}${t('Calendar','Kalendar')}<span class="dim">· ${t('Season','Musim')} ${state.seasonNum}</span></h3><div class="cal">${calHtml()}</div></section>`;
   const fz=friendNote?`<div class="card friend" style="grid-area:fz"><span class="avatar" aria-hidden="true">F</span><div><span class="eyebrow">${ic('message')}${esc(state.friend)}</span><p>${esc(tx(friendNote.body))}</p></div></div>`:'';
-  return `<div class="dash">${st}${ga}${nx}${bt}${nw}${go}<div style="grid-area:sp;min-width:0">${sponsorCard()}</div>${cal}${fz}</div>`;
+  return `<div class="dash">${nx}${ga}${st}${nw}<div style="grid-area:sp;min-width:0">${sponsorCard()}</div>${cal}${fz}</div>`;
 }
 function drawMini(){const c=$('#mini');if(!c)return;const dpr=Math.min(2,window.devicePixelRatio||1);const w=c.clientWidth||300;c.width=Math.round(w*dpr);c.height=Math.round(w*.6*dpr);const ti=curIdx(); if(use3D(ti)) drawTrack3Mini(c.getContext('2d'),ti,c.width,c.height); else drawTrackTo(c.getContext('2d'),curTrack(),c.width/1000,true);}
 function setTopH(){ const tb=document.querySelector('.topbar'); if(tb) document.documentElement.style.setProperty('--topH',tb.offsetHeight+'px'); } // the sticky tab bar sits just below the top bar
