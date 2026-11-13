@@ -1119,6 +1119,7 @@ const tplOf=(id,mat)=>{const l=TPL_BY_MAT[mat]||['swirl'];return l[hashStr(Strin
 function hsl2hex(h,s,l){h=((h%360)+360)%360;s/=100;l/=100;const k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,9-k(n),1));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(x*255).toString(16).padStart(2,'0')).join('').toUpperCase();}
 function randPair(){const h=rnd(0,360),mode=Math.random();const h2=mode<.4?h+rnd(150,210):mode<.75?h+rnd(25,60):h;
   return [hsl2hex(h,rnd(60,85),rnd(36,52)),mode>=.75?hsl2hex(h2,rnd(30,60),rnd(80,92)):hsl2hex(h2,rnd(60,90),rnd(62,80))];}
+const MONSOON_TRACK=8;
 const TRACK_DEFS = [ // v81: names from the user; the 2D outline (fallback race) is traced from the 3D plan
   {get name(){return t('Lake Village','Desa Tasik')},get blurb(){return t('Home track: banked ends, a bus-stop chicane and the big funnel.','Litar rumah: hujung condong, cikan dan corong besar.')},get pts(){return pts3(0);},get zones(){return zones3(0);}},
   {get name(){return t('Sandbanks GP','GP Beting Pasir')},get blurb(){return t('Sand almost all the way round. Grip and weight win here.','Pasir hampir sepanjang litar. Cengkaman dan berat menang di sini.')},get pts(){return pts3(1);},get zones(){return zones3(1);}},
@@ -1128,6 +1129,7 @@ const TRACK_DEFS = [ // v81: names from the user; the 2D outline (fallback race)
   {get name(){return t('Noman Islands','Kepulauan Noman')},get blurb(){return t('A figure-8: the start straight bridges over the sandy back section.','Angka 8: laluan permulaan merentasi jambatan di atas bahagian berpasir.')},get pts(){return pts3(5);},get zones(){return zones3(5);}},
   {get name(){return t('Plinko City','Bandar Plinko')},get blurb(){return t('Two peg boards, a splitter and a hairpin that turns back on itself. Anything can happen.','Dua papan pin, pemisah dan selekoh pin rambut berpatah balik. Apa-apa boleh berlaku.')},get pts(){return pts3(6);},get zones(){return zones3(6);}},
   {get name(){return t('Lembah Highlands','Tanah Tinggi Lembah')},get blurb(){return t('Valley esses, a windmill straight, a jump and a trapdoor gate. Timing is luck.','Selekoh S lembah, kincir angin, lompatan dan pintu perangkap. Masa ialah tuah.')},get pts(){return pts3(7);},get zones(){return zones3(7);}},
+  {name:'Borneo Monsoon GP',get blurb(){return t('A downhill sprint through a slick bridge and a banked finish.','Pecut menuruni bukit melalui jambatan licin dan selekoh condong.');},get pts(){return pts3(MONSOON_TRACK);},get zones(){return zones3(MONSOON_TRACK);}},
 ];
 const TRACK_CACHE = {};
 function buildTrack(i){
@@ -1242,7 +1244,16 @@ const LAB_CTRL=[[0,14,0],[6,13.4,0],[12,12.6,1],[15,12,5],[12,11.3,9],[5,10.6,10
 //   funnel {kind:'cone'|'vortex', R, turns, dir (+1 centre on the left), exit (deg turn after the drop)}.
 // F1-style layouts: long straights into tight banked hairpins, quick chicanes, a few fast sweepers.
 // Pieces: line, arc (+ang = left), hairpin {r, dir}, chicane {r, ang}, spiral, funnel, jump. 'wall' raises the walls; tight arcs get taller walls automatically.
-const TRACK3_DEFS={ // v81 Marbula-style circuits (user's layouts, circuits.py): closed loops, 3 laps; the last piece is a steep lift back to the start; two lengths per track solved so each loop closes
+const TRACK3_DEFS={
+  [MONSOON_TRACK]:{slope:.21,pieces:[
+    {t:'line',len:11,zone:'straight'},
+    {t:'arc',r:6,ang:55,wall:.6},
+    {t:'line',len:14,zone:'ice',w:3.5,wall:.55,slope:.12},
+    {t:'arc',r:6,ang:-100,wall:.65,bank:.6},
+    {t:'line',len:10,zone:'straight'},
+    {t:'arc',r:7,ang:55,wall:.6,bank:.65},
+    {t:'line',len:13,zone:'straight'}
+  ]}, // v81 Marbula-style circuits (user's layouts, circuits.py): closed loops, 3 laps; the last piece is a steep lift back to the start; two lengths per track solved so each loop closes
   0:{loop:true,slope:0.2,laps:7,pieces:[{t:'line',len:4},{t:'line',len:2,zone:'straight'},{t:'arc',r:5,ang:180},{t:'line',len:20.592,zone:'straight'},{t:'arc',r:3.4,ang:35,slope:0.17,wall:0.4,bank:0.3},{t:'line',len:1.2,slope:0.17,wall:0.4,bank:0.3},{t:'arc',r:3.4,ang:-70,slope:0.17,wall:0.4,bank:0.3},{t:'line',len:1.2,slope:0.17,wall:0.4,bank:0.3},{t:'arc',r:3.4,ang:35,slope:0.17,wall:0.4,bank:0.3},{t:'line',len:1},{t:'funnel',kind:'cone',R:2.6,turns:1.5,dir:1,exit:120},{t:'line',len:6.467},{t:'arc',r:5.5,ang:60},{t:'line',len:2,zone:'straight'},{t:'lift',close:true,incl:1.5}]},
   1:{loop:true,slope:0.2,laps:5,pieces:[{t:'line',len:4},{t:'line',len:2,zone:'straight'},{t:'arc',r:3.6,ang:90,zone:'sand'},{t:'arc',r:3.6,ang:55,zone:'sand'},{t:'arc',r:3.6,ang:-110,zone:'sand'},{t:'arc',r:3.6,ang:110,zone:'sand'},{t:'arc',r:3.6,ang:-55,zone:'sand'},{t:'arc',r:4,ang:90,zone:'sand'},{t:'line',len:30.451,zone:'sand'},{t:'hairpin',r:3.6,dir:1,zone:'sand'},{t:'arc',r:3.6,ang:-90,zone:'sand'},{t:'line',len:10.496,zone:'sand'},{t:'arc',r:4,ang:90},{t:'line',len:2,zone:'straight'},{t:'lift',close:true,incl:1.5}]},
   2:{loop:true,slope:0.2,laps:7,pieces:[{t:'line',len:4},{t:'line',len:2,zone:'straight'},{t:'arc',r:5.5,ang:70,zone:'ice'},{t:'arc',r:5.5,ang:70,zone:'ice'},{t:'line',len:4,zone:'pegs',w:4.2,slope:0.4},{t:'arc',r:4,ang:100,zone:'ice'},{t:'line',len:6.017,zone:'ice'},{t:'arc',r:3.6,ang:-80,zone:'ice'},{t:'line',len:8.648,zone:'ice'},{t:'arc',r:3.6,ang:110,zone:'ice'},{t:'arc',r:4,ang:90},{t:'line',len:2,zone:'straight'},{t:'lift',close:true,incl:1.5}]},
@@ -1371,7 +1382,7 @@ function buildTrack3(ti){
   const center=pts.reduce((a,p)=>[a[0]+p[0],a[1]+p[1],a[2]+p[2]],[0,0,0]).map(v=>v/N);
   const span=Math.max(...pts.map(p=>Math.hypot(p[0]-center[0],p[2]-center[2])));
   const tr={ti,pts,T,S,U,L,N,ds,bank,wOf,hOf,walls,mechs,chunks,pegs,zoneOf,caps,funnels:src.funnels,poles:src.poles,lifts,loop,gateIdx:Math.max(GATE_I,Math.round(GATE_D/ds)),finishIdx,center,span};
-  tr.laps=def.laps||LAPS3; TRACK3_CACHE[ti]=tr; return tr; // v81: laps per track (long circuits run 2)
+  tr.monsoon=ti===MONSOON_TRACK; tr.laps=tr.monsoon?1:(def.laps||LAPS3); TRACK3_CACHE[ti]=tr; return tr; // v81: laps per track (long circuits run 2)
 }
 const PTS3={};
 function pts3(ti){ // 2D outline for the fallback race: the 3D plan (x,z) sampled into the 1000x600 board, starting at the start line
@@ -1469,6 +1480,37 @@ function traitPace(b,zone){ let x=0; const p=b.prog;
   if(hasT(b,'hardworker')&&p<.12) x-=3;
   const wc=wClass(b); if(zone==='sand') x+=WT.sand[wc]; if(zone==='slalom'||zone==='pegs'||zone==='split'||zone==='spiral') x+=WT.nimble[wc]; if(p<.08) x+=WT.start[wc]; // v105 weight class
   return x; }
+const MONSOON_STYLES=['daredevil','clean','blocker','closer'];
+function monsoonIntent(style,order,progress){
+  if(order==='protect') return {pace:-.24,clearance:.60};
+  if(order==='push') return {pace:.25,clearance:.23};
+  if(style==='daredevil'||(style==='closer'&&progress>.72)) return {pace:.16,clearance:.26};
+  return {pace:style==='closer'?-.09:0,clearance:.48};
+}
+function monsoonSteer(W,b,idx,p,dt){
+  const tr=W.tr, side=tr.S[idx], tangent=tr.T[idx], center=tr.pts[idx];
+  const lateral=q=>(q.x-center[0])*side[0]+(q.z-center[2])*side[2];
+  const style=MONSOON_STYLES[hashStr(String(b.key))%MONSOON_STYLES.length];
+  const intent=monsoonIntent(style,b.you?W.teamOrder:null,b.prog);
+  if(W.t>=(b.nextLaneDecision||0)){
+    b.nextLaneDecision=W.t+.25;
+    const current=lateral(p);
+    const traffic=W.balls.filter(o=>o!==b&&o.body&&!o.done).map(o=>{
+      const q=o.body.translation();
+      return {ahead:(q.x-p.x)*tangent[0]+(q.z-p.z)*tangent[2],side:lateral(q)};
+    });
+    const trailing=style==='blocker'&&traffic.find(o=>o.ahead<0&&o.ahead>-.85);
+    const target=trailing?trailing.side:current*.45;
+    const cost=lane=>Math.abs(lane-target)*.3+traffic.reduce((sum,o)=>
+      sum+(o.ahead>0&&o.ahead<1.8&&Math.abs(o.side-lane)<intent.clearance?2-o.ahead:0),0);
+    b.monsoonLane=[-.85,0,.85].reduce((best,lane)=>cost(lane)<cost(best)?lane:best,0);
+  }
+  const v=b.body.linvel(), sideways=v.x*side[0]+v.z*side[2];
+  const steering=clamp((b.monsoonLane-lateral(p))*2-sideways*.9,-1.5,1.5);
+  const mass=b.body.mass();
+  b.body.applyImpulse({x:(side[0]*steering+tangent[0]*intent.pace)*dt*mass,
+    y:0,z:(side[2]*steering+tangent[2]*intent.pace)*dt*mass},true);
+}
 function stepWorld3(W){
   const tr=W.tr,dt=PHYS.DT; W.t+=dt;
   if(W.started&&W.divs&&W.t-W.t0>3.5){ W.divs.forEach(c=>W.world.removeCollider(c,true)); W.divs=null; } // lane dividers go once the field is away (loop tracks pass here again)
@@ -1490,6 +1532,7 @@ function stepWorld3(W){
     if(!b.done&&bd>(SPECIAL(zone)?25:9)&&p.y<tr.pts[best][1]-.8&&!SPECIAL(zone)){
       b.dnf=true; b.out=true; b.outT=W.t; b.done=true; b.ft=W.t-W.t0; b.place=1000+(++W.dnfN); W.finished++; b.incidents++; W.events.push({t:W.t,type:'out',key:b.key}); continue; }
     if(bd>(SPECIAL(zone)?25:9)){ const i=tr.loop?(best-3+tr.N)%tr.N:Math.max(0,best-3),q=v3.add(tr.pts[i],v3.mul(tr.U[i],PHYS.R+.05)); b.body.setTranslation({x:q[0],y:q[1],z:q[2]},true); b.body.setLinvel({x:0,y:0,z:0},true); b.body.setAngvel({x:0,y:0,z:0},true); b.idx=i; b.incidents++; b.pv={x:0,y:0,z:0}; W.events.push({t:W.t,type:'off',key:b.key}); impact3(W,b,5.5); continue; }
+    if(tr.monsoon&&!b.done&&zone==='ice') monsoonSteer(W,b,best,p,dt);
     const aheadI=tr.loop?(best+Math.round(.5/tr.ds))%tr.N:Math.min(tr.N-1,best+Math.round(.5/tr.ds));
     const liftAhead=zone!=='lift'&&!SPECIAL(zone)&&tr.zoneOf[aheadI]==='lift';
     const onL=zone==='lift'&&tr.lifts.find(l=>best>=l.i0&&best<=l.i1&&!(b.liftDone&&b.liftDone[l.i0]===b.lapsDone)); // one ride per lift per lap (lap count, not index wraps: those can flip at the loop seam)
@@ -1713,7 +1756,7 @@ let toastT=0; function toast(msg){const el=$('#toast');el.textContent=msg;el.hid
 
 const byId=id=>state.roster.find(m=>m.id===id);
 const tier=()=>TIERS[state.tier];
-const lapsOf=ti=>has3D(ti)?(TRACK3_DEFS[ti].laps||LAPS3):LAPS;
+const lapsOf=ti=>ti===MONSOON_TRACK?(use3D(ti)?1:LAPS):has3D(ti)?(TRACK3_DEFS[ti].laps||LAPS3):LAPS;
 const curTrack=()=>buildTrack(state.season.calendar[state.season.raceIdx]);
 function usedNames(){const s=new Set(state?state.roster.map(m=>m.name):[]);if(state)state.rivals.forEach(tm=>tm.marbles.forEach(m=>s.add(m.name)));return s;}
 function nameFor(tr,used){const pool=tr&&TRAIT_NAMES[tr]?TRAIT_NAMES[tr]:MY_NAMES;if(!used)return freshName(pool);const free=pool.filter(n=>!used.has(n));const n=free.length?pick(free):pick(pool)+' II';used.add(n);return n;}
@@ -2130,7 +2173,7 @@ const rEvents=()=>ui.mode3?W.events:R.events;
 const rGap=(a,b)=>ui.mode3?(a.idx-b.idx)*W.tr.ds/3.6:(a.s-b.s)/BASE;
 const rZone=r=>{const z=ui.mode3?W.tr.zoneOf[r.idx]:zoneOf(r);return z==='drop'?'funnel':(z==='ramp'||z==='gap')?'jump':ZONES[z]?z:'wood';};
 const rProg=r=>ui.mode3?Math.min(1,r.prog/FINISH_F):clamp(Math.max(0,r.s)/R.D,0,1);
-const nStage=()=>ui.mode3&&W&&W.tr.loop?(W.tr.laps||LAPS3):3; // v81: laps differ per track
+const nStage=()=>ui.mode3&&W?.tr.monsoon?1:ui.mode3&&W&&W.tr.loop?(W.tr.laps||LAPS3):3; // v81: laps differ per track
 const rStage=r=>ui.mode3&&W&&W.tr.loop?clamp((r.lapsDone||0)+1,1,nStage()):clamp(Math.floor(rProg(r)*3)+1,1,3);
 const stageLabel=()=>ui.mode3&&!(W&&W.tr.loop)?t('Sector','Sektor'):t('Lap','Pusingan');
 function setRaceHead(){
@@ -2138,10 +2181,13 @@ function setRaceHead(){
   $('#rTitle').textContent=TRACK_DEFS[curIdx()].name;
 }
 function renderRaceControls(){
+  const orders=!$('#r3').hidden&&W?.tr.monsoon?['push','hold','protect'].map((order,i)=>
+    `<button class="btn btn-sm" data-act="monsoonOrder" data-v="${order}" aria-pressed="${(W.teamOrder||'hold')===order}">${[t('Push','Serang'),t('Hold','Kekal'),t('Protect','Lindung')][i]}</button>`).join(''):'';
+
   const pl=ui.paused?t('Resume','Sambung'):t('Pause','Jeda');
   $('#speedBtns').innerHTML=`<button class="btn btn-sm" data-act="pause" aria-pressed="${!!ui.paused}" aria-label="${pl}" title="${pl}">${ic(ui.paused?'play':'pause')}</button>`+
     [1,2,4].map(v=>`<button class="btn btn-sm" data-act="speed" data-v="${v}" aria-pressed="${simSpeed===v}">${ic(v===1?'play':'ff')}${v}×</button>`).join('')+
-    `<button class="btn btn-sm" data-act="skip">${ic('skip')}${t('Skip','Langkau')}</button>`;
+    `<button class="btn btn-sm" data-act="skip">${ic('skip')}${t('Skip','Langkau')}</button>`+orders;
 }
 function startRace(){
   if(state.entries.length<2) return toast(t('Enter two marbles first','Masukkan dua guli dulu'));
@@ -2190,7 +2236,7 @@ function safe3D(ti){
 }
 function begin3D(ti){
   const sc=sceneFor(ti), T=R3.T; clear3DRace(); S3.cur=sc;
-  W=createWorld3(R3.RAP,sc.tr,raceGrid(fieldFor('race')));
+  W=createWorld3(R3.RAP,sc.tr,raceGrid(fieldFor('race'))); renderRaceControls();
   sc.gate.visible=true; sc.gate.position.y=sc.gateY0; if(sc.divG) sc.divG.visible=true;
   S3.meshes={};
   W.balls.forEach(b=>{const m=makeMarbleMesh(b,PHYS.R);sc.scene.add(m);S3.meshes[b.key]=m;});
@@ -4303,6 +4349,12 @@ document.addEventListener('click',e=>{
     case 'riskGo': ui.riskOK=true; closeModal(); startRace(); break;
     case 'sponsorPick': signSponsor(+v); break;
     case 'allMarbles': ui.allMarbles=!ui.allMarbles; render(); break;
+    case 'monsoonOrder':
+      if(ui.mode3&&W?.tr.monsoon&&['push','hold','protect'].includes(v)){
+        W.teamOrder=v; W.balls.filter(b=>b.you).forEach(b=>{b.nextLaneDecision=0;});
+        renderRaceControls();
+      }
+      break;
     case 'speed': setSpeed(+v); break;
     case 'skip': skipRace(); break;
     case 'pause': togglePause(); break;
